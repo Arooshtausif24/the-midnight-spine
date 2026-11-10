@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#25141F" />
+    <meta name="description" content="The Midnight Spine is a calm, clever reading companion for choosing your next read." />
+    <title>The Midnight Spine</title>
+    <link rel="preconnect" href="https://openlibrary.org" crossorigin />
+    <link rel="preconnect" href="https://covers.openlibrary.org" crossorigin />
+    <script>(function(){try{var t=localStorage.getItem("ms-theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.dataset.theme=t}catch(e){}})();</script>
+    <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" /></noscript>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/api/config.js"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+/* ===== Intro + sign up / log in overlay (all classes prefixed ms- so they never clash with the dashboard) ===== */
+:root{--ms-blush:#F9E9E1;--ms-mauve:#8E6B7C;--ms-plum:#4A2C3E;--ms-deep:#936E7F;--ms-fade:.8s;--ms-reveal:1.6s;
+  --ms-serif:"Cormorant Garamond","Cormorant",Georgia,"Times New Roman",serif;--ms-sans:"Jost","Helvetica Neue",Arial,sans-serif}
+body.ms-locked{overflow:hidden}
+.ms-overlay{position:fixed;inset:0;z-index:1200;font-family:var(--ms-sans);color:var(--ms-plum);
+  background:radial-gradient(120% 90% at 8% 0%,var(--ms-deep) 0,rgba(147,110,127,.55) 18%,transparent 46%),
+    radial-gradient(110% 90% at 100% 100%,var(--ms-deep) 0,rgba(147,110,127,.5) 16%,transparent 42%),
+    radial-gradient(90% 80% at 0% 100%,rgba(230,201,201,.8),transparent 55%),
+    radial-gradient(90% 80% at 100% 0%,rgba(230,201,201,.8),transparent 55%),var(--ms-blush);
+  transition:opacity var(--ms-fade) ease,visibility 0s linear var(--ms-fade)}
+.ms-overlay.ms-off{opacity:0;visibility:hidden;pointer-events:none}
+.ms-overlay.ms-instant{transition:none}
+.ms-spark{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:ms-twinkle 4s ease-in-out infinite}
+.ms-spark.ms-big{width:14px;height:14px;border-radius:0;background:radial-gradient(circle,#fff 0 2px,transparent 3px),linear-gradient(#fff,#fff) center/1px 100% no-repeat,linear-gradient(#fff,#fff) center/100% 1px no-repeat}
+@keyframes ms-twinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:.95;transform:scale(1.15)}}
+.ms-stage{position:absolute;inset:0;display:flex;padding:24px;overflow-y:auto}
+.ms-stage>*{margin:auto}
+#ms-welcome{transition:opacity var(--ms-fade) ease,visibility 0s linear var(--ms-fade)}
+#ms-welcome.ms-gone{opacity:0;visibility:hidden}
+.ms-greet{margin:auto;font-family:var(--ms-serif);font-weight:500;text-align:center;white-space:nowrap;
+  font-size:clamp(2.2rem,7vw,4.6rem);letter-spacing:.005em;color:var(--ms-plum);text-shadow:0 1px 0 rgba(255,255,255,.6);
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 40%,transparent 60%);mask-image:linear-gradient(90deg,#000 0,#000 40%,transparent 60%);
+  -webkit-mask-size:250% 100%;mask-size:250% 100%;-webkit-mask-position:100% 0;mask-position:100% 0;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;animation:ms-wipe var(--ms-reveal) cubic-bezier(.45,.05,.3,1) .5s forwards}
+.ms-greet em{font-style:italic;font-weight:400;color:#7A5468}
+.ms-heart{font-size:.7em;margin-left:.2em;vertical-align:.08em}
+@keyframes ms-wipe{to{-webkit-mask-position:0 0;mask-position:0 0}}
+#ms-auth{opacity:0;visibility:hidden;transition:opacity var(--ms-fade) ease .2s,visibility 0s}
+#ms-auth.ms-show{opacity:1;visibility:visible}
+.ms-card{width:min(100%,400px);padding:40px 34px 30px;text-align:center;background:rgba(255,248,244,.62);border:1px solid rgba(255,255,255,.8);
+  border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 24px 60px -24px rgba(74,44,62,.35)}
+.ms-card h1{margin:0 0 6px;font-family:var(--ms-serif);font-weight:500;font-size:2.3rem;line-height:1.1;color:var(--ms-plum);letter-spacing:0}
+.ms-card h1 em{font-weight:400;color:#7A5468}
+.ms-sub{margin:0 0 24px;font-weight:300;color:var(--ms-mauve);font-size:.95rem}
+.ms-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 0 24px;background:rgba(142,107,124,.14);border-radius:14px}
+.ms-tab{padding:10px;font-size:.95rem;color:var(--ms-mauve);background:none;border:0;border-radius:10px;transition:background .25s,color .25s,box-shadow .25s}
+.ms-tab[aria-selected="true"]{background:#fff;color:var(--ms-plum);font-weight:500;box-shadow:0 2px 8px -2px rgba(74,44,62,.25)}
+.ms-field{margin-bottom:16px;text-align:left}
+.ms-field[hidden],.ms-row[hidden],.ms-card form[hidden]{display:none}
+.ms-card label{display:block;font-size:.85rem;color:var(--ms-plum);margin:0 0 6px 2px}
+.ms-card input[type=text],.ms-card input[type=email],.ms-card input[type=password]{width:100%;padding:13px 16px;font-size:1rem;color:var(--ms-plum);
+  background:rgba(255,255,255,.75);border:1px solid rgba(142,107,124,.35);border-radius:12px;transition:border-color .2s,box-shadow .2s,background .2s}
+.ms-card input::placeholder{color:rgba(142,107,124,.6)}
+.ms-card input:focus-visible{outline:none;border-color:var(--ms-mauve);box-shadow:0 0 0 3px rgba(142,107,124,.25);background:#fff}
+.ms-row{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;margin:2px 2px 20px}
+.ms-card .ms-row label{display:flex;align-items:center;gap:8px;margin:0;color:var(--ms-mauve)}
+.ms-card a{color:var(--ms-mauve);text-decoration:none;border-bottom:1px solid rgba(142,107,124,.4)}
+.ms-card a:hover{color:var(--ms-plum);border-color:var(--ms-plum)}
+.ms-card a:focus-visible,.ms-card button:focus-visible,.ms-skip:focus-visible{outline:2px solid var(--ms-plum);outline-offset:3px;border-radius:6px}
+.ms-primary{width:100%;padding:14px;font-weight:500;font-size:1rem;letter-spacing:.02em;color:#FBEFEA;background:var(--ms-plum);border:0;border-radius:12px;transition:background .2s,transform .15s}
+.ms-primary:hover{background:#5d3a4f}.ms-primary:active{transform:translateY(1px)}
+.ms-primary[disabled]{opacity:.6;cursor:wait}
+.ms-msg{min-height:1.2em;margin:12px 0 0;font-size:.88rem;color:var(--ms-plum)}
+.ms-foot{margin:18px 0 0;font-size:.9rem;color:var(--ms-mauve);font-weight:300}
+.ms-guest{margin-top:12px;padding:4px;border:0;background:none;color:var(--ms-mauve);font:inherit;font-size:.85rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.ms-guest:hover{color:var(--ms-plum)}
+.ms-skip{position:absolute;right:18px;bottom:14px;background:none;border:0;font-size:.85rem;color:var(--ms-mauve);opacity:.7;transition:opacity .3s}
+.ms-skip:hover{opacity:1}.ms-skip.ms-hide{opacity:0;pointer-events:none}
+.ms-logout{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 14px;padding:10px 12px;font-size:12px;color:#d9c0cb;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;transition:background .2s}
+.ms-logout:hover{background:rgba(255,255,255,.12)}
+@media (prefers-reduced-motion:reduce){.ms-spark{animation:none}.ms-greet{animation-duration:.01s;animation-delay:0s}:root{--ms-fade:.3s}}
+.app-loader{z-index:1100!important}
+</style>
+    <style id="ms-theme">
+/* Welcome + sign in: same lamplit night as the app. Colours follow light/dark mode. */
+.ms-overlay{color:#f6e9f0;background:radial-gradient(70% 60% at 12% 8%,rgba(232,169,59,.3),transparent 60%),radial-gradient(80% 70% at 100% 100%,rgba(107,63,87,.55),transparent 60%),#25141f}
+.ms-spark{background:#f6d28f}
+.ms-spark.ms-big{background:radial-gradient(circle,#f6d28f 0 2px,transparent 3px),linear-gradient(#f6d28f,#f6d28f) center/1px 100% no-repeat,linear-gradient(#f6d28f,#f6d28f) center/100% 1px no-repeat}
+.ms-greet{color:#fff;text-shadow:none;font-size:clamp(2.6rem,8vw,5.4rem)}
+.ms-heart{color:#e8a93b}
+.ms-card{background:var(--surface,#fffaf7);color:var(--ink,#26181f);border:1px solid var(--line,#e6d6d3);border-radius:12px;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:0 30px 70px -30px rgba(0,0,0,.6),0 0 90px -30px rgba(232,169,59,.35)}
+.ms-card h1{color:var(--ink,#26181f);font-size:2.5rem;letter-spacing:-.01em}
+.ms-card h1 em{color:inherit}
+.ms-sub,.ms-foot{color:var(--muted,#675560);font-size:1rem;font-weight:400}
+.ms-tabs{background:var(--cream,#f0e1de);border-radius:10px}
+.ms-tab{min-height:44px;font-size:1rem;color:var(--muted,#675560)}
+.ms-tab[aria-selected="true"]{background:var(--surface,#fffaf7);color:var(--ink,#26181f);box-shadow:0 1px 4px rgba(37,20,31,.25)}
+.ms-card label{font-size:.9375rem;font-weight:500;color:var(--ink,#26181f)}
+.ms-card input[type=text],.ms-card input[type=email],.ms-card input[type=password]{min-height:48px;font-size:1rem;color:var(--ink,#26181f);background:var(--surface,#fffaf7);border:1px solid var(--muted,#675560);border-radius:8px}
+.ms-card input::placeholder{color:var(--muted,#675560);opacity:.75}
+.ms-card input:focus-visible{border-color:var(--plum,#6b3f57);box-shadow:0 0 0 3px rgba(107,63,87,.25);background:var(--surface,#fffaf7)}
+.ms-row,.ms-card .ms-row label{color:var(--muted,#675560);font-size:.9375rem}
+.ms-card a{color:var(--plum,#6b3f57);border-color:currentColor}
+.ms-card a:hover{color:var(--ink,#26181f)}
+.ms-primary{min-height:48px;background:#e8a93b;color:#25141f;border-radius:8px;font-size:1rem}
+.ms-primary:hover{background:#f6d28f}
+.ms-msg{font-size:.9375rem;color:var(--ink,#26181f)}
+.ms-guest{min-height:44px;color:var(--muted,#675560);font-size:.9375rem}
+.ms-guest:hover{color:var(--ink,#26181f)}
+.ms-skip{min-height:44px;font-size:.9375rem;color:#eadbe3;opacity:.9}
+.ms-card a:focus-visible,.ms-card button:focus-visible,.ms-guest:focus-visible{outline:3px solid var(--plum,#6b3f57);outline-offset:3px}
+.ms-skip:focus-visible{outline:3px solid #e8a93b}
+.ms-logout{min-height:44px;font-size:.875rem;color:#eadbe3}
+</style>
+    <style id="ms-night-sky">
+/* Dark mode only: midnight-blue sky with tiny sparkling diamond stars. Light mode is untouched. */
+#ms-stars{display:none}
+html[data-theme="dark"]{background:radial-gradient(120% 90% at 50% 0%,#18285c 0,#0e1a45 38%,#091033 70%,#050a22 100%) fixed,#0a1230}
+html[data-theme="dark"] body,
+html[data-theme="dark"] .app-shell,
+html[data-theme="dark"] .main-content{background:transparent!important}
+html[data-theme="dark"] .topbar{background:transparent;border-bottom-color:rgba(160,185,255,.18)}
+html[data-theme="dark"] .sidebar{background:rgba(7,12,38,.92)}
+html[data-theme="dark"] #ms-stars{display:block;position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;
+  filter:drop-shadow(0 0 2px rgba(190,210,255,.85))}
+#ms-stars i{position:absolute;display:block;background:#fff;opacity:.3;
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);animation:ms-sparkle 3.6s ease-in-out infinite}
+#ms-stars i.b{background:#cfe0ff}
+#ms-stars i.g{background:#fff3c9}
+@keyframes ms-sparkle{0%,100%{opacity:.18;transform:scale(.7) rotate(0)}50%{opacity:1;transform:scale(1.25) rotate(45deg)}}
+@media (prefers-reduced-motion:reduce){#ms-stars i{animation:none;opacity:.6}}
+/* ---- Welcome / sign-in screen follows the theme too ---- */
+.ms-overlay-stars{display:none}
+html[data-theme="dark"] .ms-overlay{color:#eaf0ff;background:radial-gradient(120% 90% at 50% 0%,#18285c 0,#0e1a45 38%,#091033 70%,#050a22 100%),#0a1230}
+html[data-theme="dark"] .ms-spark{display:none}
+html[data-theme="dark"] .ms-overlay-stars{display:block;position:absolute;inset:0;overflow:hidden;pointer-events:none;filter:drop-shadow(0 0 2px rgba(190,210,255,.85))}
+.ms-overlay-stars i{position:absolute;display:block;background:#fff;opacity:.3;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);animation:ms-sparkle 3.6s ease-in-out infinite}
+.ms-overlay-stars i.b{background:#cfe0ff}.ms-overlay-stars i.g{background:#fff3c9}
+html[data-theme="dark"] .ms-greet{color:#fff}
+html[data-theme="dark"] .ms-heart{color:#cfe0ff}
+html[data-theme="dark"] .ms-card{background:#101a40;border-color:rgba(160,185,255,.22);box-shadow:0 30px 70px -30px rgba(0,0,0,.7),0 0 90px -35px rgba(120,150,255,.35)}
+html[data-theme="dark"] .ms-tabs{background:rgba(160,185,255,.12)}
+html[data-theme="dark"] .ms-tab[aria-selected="true"]{background:#1d2d68;color:#fff}
+html[data-theme="dark"] .ms-card input[type=text],html[data-theme="dark"] .ms-card input[type=email],html[data-theme="dark"] .ms-card input[type=password]{background:#0a1233;border-color:#5b6fae;color:#f3f6ff}
+html[data-theme="dark"] .ms-card input:focus-visible{background:#0a1233;border-color:#9db4ff;box-shadow:0 0 0 3px rgba(157,180,255,.3)}
+html[data-theme="dark"] .ms-card a{color:#b9c9ff}
+html[data-theme="dark"] .ms-skip{color:#cfd9f7}
+/* light mode: the original soft blush welcome screen */
+html[data-theme="light"] .ms-overlay{color:var(--ms-plum);background:radial-gradient(120% 90% at 8% 0%,var(--ms-deep) 0,rgba(147,110,127,.55) 18%,transparent 46%),radial-gradient(110% 90% at 100% 100%,var(--ms-deep) 0,rgba(147,110,127,.5) 16%,transparent 42%),radial-gradient(90% 80% at 0% 100%,rgba(230,201,201,.8),transparent 55%),radial-gradient(90% 80% at 100% 0%,rgba(230,201,201,.8),transparent 55%),var(--ms-blush)}
+html[data-theme="light"] .ms-spark{background:#fff}
+html[data-theme="light"] .ms-spark.ms-big{background:radial-gradient(circle,#fff 0 2px,transparent 3px),linear-gradient(#fff,#fff) center/1px 100% no-repeat,linear-gradient(#fff,#fff) center/100% 1px no-repeat}
+html[data-theme="light"] .ms-greet{color:var(--ms-plum);text-shadow:0 1px 0 rgba(255,255,255,.6)}
+html[data-theme="light"] .ms-heart{color:#c2587a}
+html[data-theme="light"] .ms-card{box-shadow:0 24px 60px -24px rgba(74,44,62,.35)}
+html[data-theme="light"] .ms-skip{color:var(--ms-mauve)}
+@media (prefers-reduced-motion:reduce){.ms-overlay-stars i{animation:none;opacity:.6}}
+/* ---- Dark mode palette: white text, navy surfaces that stand out from the midnight sky ---- */
+:root[data-theme="dark"]{--night:#060b24;--night-2:#0f1a45;--paper:#0a1230;--surface:#14225a;--line:#3f54a3;--ink:#ffffff;--muted:#d6defa;--cream:#1b2c6e;--lilac:#1a2a66;--plum:#bccbff;--forest:#ffffff;--forest-2:#e8eeff}
+html[data-theme="dark"] body{color:#fff}
+html[data-theme="dark"] .panel,html[data-theme="dark"] .reading-card,html[data-theme="dark"] .book-card,html[data-theme="dark"] .log-item,html[data-theme="dark"] .goal-card,html[data-theme="dark"] .goal-setter,html[data-theme="dark"] .discover-panel,html[data-theme="dark"] .log-summary>div,html[data-theme="dark"] .top-search-form,html[data-theme="dark"] .open-library-card,html[data-theme="dark"] .review-card{background:rgba(20,34,90,.88);border:1px solid #3f54a3;box-shadow:0 14px 34px -16px rgba(0,0,0,.6)}
+html[data-theme="dark"] .stat{background:rgba(20,34,90,.88);border-color:#3f54a3}
+html[data-theme="dark"] .pick-card{background:linear-gradient(135deg,#101c52 0%,#233a94 70%,#3b57c2 150%);border:1px solid rgba(190,205,255,.35);color:#fff}
+html[data-theme="dark"] .weekly-card{background:linear-gradient(145deg,#1b2d6e,#2c449a);border:1px solid rgba(190,205,255,.3);color:#fff}
+html[data-theme="dark"] .goal-card.featured{background:#1f3380;border-color:#5a73d0}
+html[data-theme="dark"] .tag-light{background:rgba(190,205,255,.18);color:#fff}
+html[data-theme="dark"] .nav-item.active{color:#25141f}
+html[data-theme="dark"] .status-badge{background:#243783;color:#fff}
+html[data-theme="dark"] .status-badge.completed{border-color:#bccbff;color:#bccbff}
+html[data-theme="dark"] .progress-line,html[data-theme="dark"] .goal-card .goal-progress,html[data-theme="dark"] .dist-row i{background:#2e4290}
+html[data-theme="dark"] .goal-ring{background:conic-gradient(var(--lamp) var(--goal-progress,18%),#2e4290 0)}
+html[data-theme="dark"] .chart-bars i{background:#5068b8}
+html[data-theme="dark"] .chart-bars i.today{background:var(--lamp)}
+html[data-theme="dark"] .shelf-strip{border-color:#6b82cc}
+html[data-theme="dark"] .shelf-strip::before{background:#6b82cc}
+html[data-theme="dark"] .star-row{--star-off:#4a5fa8}
+html[data-theme="dark"] .rating-picker button{color:#8397dc}
+html[data-theme="dark"] .is-skeleton .open-book-cover,html[data-theme="dark"] .skeleton-line{background:#2a3d8c}
+html[data-theme="dark"] .toast{background:#1f3380;color:#fff}
+html[data-theme="dark"] button.milestone-button:hover,html[data-theme="dark"] .card-menu:hover{background:#243783}
+html[data-theme="dark"] .open-book-cover,html[data-theme="dark"] .related-cover,html[data-theme="dark"] .cover-ink,html[data-theme="dark"] .book-card .cover-ink{background-color:#243783}
+html[data-theme="dark"] .modal{background:#14225a;color:#fff;border:1px solid #3f54a3}
+html[data-theme="dark"] .modal input,html[data-theme="dark"] .modal textarea,html[data-theme="dark"] .modal select,html[data-theme="dark"] .search-field,html[data-theme="dark"] .discover-search,html[data-theme="dark"] .stepper input,html[data-theme="dark"] input[type="date"]{background:#0a1233;border-color:#5b6fae;color:#fff}
+html[data-theme="dark"] .top-search-form input,html[data-theme="dark"] .search-field input,html[data-theme="dark"] .discover-search input{background:transparent;color:#fff}
+html[data-theme="dark"] input::placeholder,html[data-theme="dark"] textarea::placeholder{color:#aebbe8;opacity:1}
+html[data-theme="dark"] .filter-pill,html[data-theme="dark"] .preset,html[data-theme="dark"] .stepper button{background:#14225a;border-color:#3f54a3;color:#fff}
+html[data-theme="dark"] .button-ghost{color:#fff;border-color:#6b82cc}
+/* ---- Round 2: lighter, clearly separated boxes + fixes for buttons, pills and the goal ring ---- */
+html[data-theme="dark"] .panel,html[data-theme="dark"] .reading-card,html[data-theme="dark"] .book-card,html[data-theme="dark"] .log-item,html[data-theme="dark"] .goal-card,html[data-theme="dark"] .goal-setter,html[data-theme="dark"] .discover-panel,html[data-theme="dark"] .log-summary>div,html[data-theme="dark"] .top-search-form,html[data-theme="dark"] .open-library-card,html[data-theme="dark"] .review-card,html[data-theme="dark"] .stat{background:linear-gradient(160deg,#2c4799 0%,#1f3380 100%);border:1px solid #8aa2ee;box-shadow:0 12px 30px -14px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04) inset}
+html[data-theme="dark"] .goal-card.featured{background:linear-gradient(160deg,#3a58b8 0%,#28409a 100%);border-color:#a9bcff}
+html[data-theme="dark"] .modal{background:#1f3380;border-color:#8aa2ee}
+html[data-theme="dark"] .main-content :is(h1,h2,h3,h4){color:#fff}
+html[data-theme="dark"] .main-content :is(h1,h2) em{color:#bccbff}
+html[data-theme="dark"] .goal-card{color:#fff}
+html[data-theme="dark"] .top-search-form button,html[data-theme="dark"] .top-search-form button:hover{background:var(--lamp)!important;color:#25141f!important}
+html[data-theme="dark"] .top-search-form button:hover{background:var(--lamp-soft)!important}
+html[data-theme="dark"] .button-cream{background:#f6d28f;color:#25141f}
+html[data-theme="dark"] .button-cream:hover{background:#ffe2ab}
+html[data-theme="dark"] .milestone,html[data-theme="dark"] .trend-pill,html[data-theme="dark"] .add-inline{background:rgba(190,205,255,.2);color:#fff}
+html[data-theme="dark"] .milestone span{color:var(--lamp)}
+html[data-theme="dark"] button.milestone-button:hover{background:rgba(190,205,255,.34)}
+html[data-theme="dark"] .goal-ring{background:conic-gradient(var(--lamp) var(--goal-progress,18%),#101a4a 0)}
+html[data-theme="dark"] .goal-ring::after{background:#1f3380}
+html[data-theme="dark"] .goal-ring strong{color:#fff}
+html[data-theme="dark"] .goal-ring small{color:#d6defa}
+html[data-theme="dark"] .progress-line,html[data-theme="dark"] .goal-card .goal-progress,html[data-theme="dark"] .dist-row i{background:#101a4a}
+html[data-theme="dark"] .chart-bars i{background:#7d95e6}
+html[data-theme="dark"] .chart-bars i.today{background:var(--lamp)}
+/* ---- Light mode: a warm cream-to-peach gradient behind the app ---- */
+html[data-theme="light"]{background:linear-gradient(160deg,#fff8ec 0%,#fdeedd 45%,#fbdcc6 100%) fixed,#fdeedd}
+html[data-theme="light"] body,html[data-theme="light"] .app-shell,html[data-theme="light"] .main-content{background:transparent}
+html[data-theme="light"] .topbar{background:rgba(255,246,248,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom-color:rgba(142,107,124,.22)}
+html[data-theme="light"] .stat{background:rgba(255,255,255,.6)}
+</style>
+    <script defer src="app.js"></script>
+    <noscript><style>.app-loader{display:none!important}body.is-loading .app-shell{opacity:1!important;transform:none!important}</style></noscript>
+  </head>
+  <body class="is-loading" aria-busy="true">
+    <div id="ms-stars" aria-hidden="true"></div>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="ms-overlay" id="ms-overlay">
+  <span class="ms-spark ms-big" style="top:9%;left:23%"></span>
+  <span class="ms-spark" style="top:9%;left:6%"></span>
+  <span class="ms-spark" style="top:17%;left:14%;animation-delay:1s"></span>
+  <span class="ms-spark" style="top:35%;left:14%;animation-delay:2s"></span>
+  <span class="ms-spark" style="bottom:13%;right:13%;animation-delay:.6s"></span>
+  <span class="ms-spark" style="bottom:11%;right:6%;animation-delay:1.6s"></span>
+  <span class="ms-spark" style="bottom:8%;right:3%;animation-delay:2.4s"></span>
+  <div class="ms-stage" id="ms-welcome" aria-live="polite">
+    <h1 class="ms-greet">Welcome<span class="ms-heart" aria-hidden="true">♥</span></h1>
+  </div>
+  <section class="ms-stage" id="ms-auth" aria-label="Sign up or log in">
+    <div class="ms-card">
+      <div class="ms-tabs" role="tablist">
+        <button class="ms-tab" type="button" role="tab" id="ms-tab-signup" aria-selected="true">Sign up</button>
+        <button class="ms-tab" type="button" role="tab" id="ms-tab-login" aria-selected="false">Log in</button>
+      </div>
+      <h1 id="ms-title">Join us</h1>
+      <p class="ms-sub" id="ms-sub">Create your account to get started.</p>
+
+      <form id="ms-signup" name="signup" method="post" action="#" autocomplete="on" novalidate>
+        <div class="ms-field"><label for="ms-su-name">Full name</label><input id="ms-su-name" name="name" type="text" autocomplete="name" placeholder="Your name"></div>
+        <div class="ms-field"><label for="ms-su-email">Email</label><input id="ms-su-email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com"></div>
+        <div class="ms-field"><label for="ms-su-pw">Password</label><input id="ms-su-pw" name="new-password" type="password" autocomplete="new-password" placeholder="Create a password"></div>
+        <div class="ms-field"><label for="ms-su-pw2">Confirm password</label><input id="ms-su-pw2" name="confirm-password" type="password" autocomplete="new-password" placeholder="Re-enter your password"></div>
+        <button class="ms-primary" type="submit">Create account</button>
+        <p class="ms-msg" id="ms-su-msg" role="status"></p>
+      </form>
+
+      <form id="ms-login" name="login" method="post" action="#" autocomplete="on" novalidate hidden>
+        <div class="ms-field"><label for="ms-li-email">Email</label><input id="ms-li-email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com"></div>
+        <div class="ms-field"><label for="ms-li-pw">Password</label><input id="ms-li-pw" name="password" type="password" autocomplete="current-password" placeholder="Enter your password"></div>
+        <div class="ms-row"><label><input type="checkbox" name="remember"> Keep me logged in</label><a href="#forgot">Forgot password?</a></div>
+        <button class="ms-primary" type="submit">Log in</button>
+        <p class="ms-msg" id="ms-li-msg" role="status"></p>
+      </form>
+
+      <p class="ms-foot" id="ms-foot"></p>
+      <button class="ms-guest" id="ms-guest" type="button">Continue without an account</button>
+    </div>
+  </section>
+  <button class="ms-skip" id="ms-skip" type="button">Skip intro</button>
+</div>
+
+    <div class="app-loader" id="app-loader" role="status" aria-live="polite">
+      <div class="loader-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p class="loader-wordmark">the midnight <em>spine</em></p>
+      <figure class="loader-quote" id="loader-quote" aria-hidden="true">
+        <blockquote><p id="loader-quote-text"></p></blockquote>
+        <figcaption id="loader-quote-source"></figcaption>
+      </figure>
+      <p class="loader-status" id="loader-status">Setting the shelf…</p>
+      <div class="loader-track" aria-hidden="true"><span></span></div>
+    </div>
+    <script>
+    // Show the quote at first paint so it never waits for app.js or the network.
+    (function(){
+      try{
+        // Make the logged-in loader fast without waiting for the auth client to load.
+        var ref='ryjoeqsqxjeyehnewwse';
+        try {
+          var token=JSON.parse(localStorage.getItem('sb-'+ref+'-auth-token')||'null');
+          window.__hasCachedSession=!!(token&&token.user);
+        } catch(e) {
+          window.__hasCachedSession=false;
+        }
+        var Q=[["Call me Ishmael.","Herman Melville, Moby-Dick"],["I declare after all there is no enjoyment like reading!","Jane Austen, Pride and Prejudice"],["I am half agony, half hope.","Jane Austen, Persuasion"],["I am no bird; and no net ensnares me.","Charlotte Brontë, Jane Eyre"],["It was the best of times, it was the worst of times.","Charles Dickens, A Tale of Two Cities"],["Books are the treasured wealth of the world.","Henry David Thoreau, Walden"],["There is no Frigate like a Book / To take us Lands away.","Emily Dickinson"],["I am not afraid of storms, for I am learning how to sail my ship.","Louisa May Alcott, Little Women"],["What is the use of a book without pictures or conversations?","Lewis Carroll, Alice’s Adventures in Wonderland"],["Beware; for I am fearless, and therefore powerful.","Mary Shelley, Frankenstein"]];
+        var K='next-chapter-last-quote', last=-1;
+        try{ last=Number(localStorage.getItem(K)); }catch(e){}
+        var i=Math.floor(Math.random()*Q.length); if(i===last) i=(i+1)%Q.length;
+        try{ localStorage.setItem(K,String(i)); }catch(e){}
+        var f=document.getElementById('loader-quote');
+        document.getElementById('loader-quote-text').textContent='\u201c'+Q[i][0]+'\u201d';
+        document.getElementById('loader-quote-source').textContent='\u2014 '+Q[i][1];
+        if(!window.__hasCachedSession) f.hidden=true;
+        f.dataset.ready='1'; window.__quoteAt=performance.now();
+        if(window.__hasCachedSession) requestAnimationFrame(function(){ f.classList.add('is-in'); });
+      }catch(e){}
+    })();
+    </script>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand-lockup" aria-label="The Midnight Spine home">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="brand-name">the midnight<br /><em>spine</em></div>
+        </div>
+        <p class="sidebar-whisper">Small rituals.<br />Big stories.</p>
+        <nav class="primary-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>Today</span></button>
+          <button class="nav-item" data-view="tbr"><span class="nav-icon" aria-hidden="true">▤</span><span>My TBR</span><span class="nav-count" id="tbr-count">0</span></button>
+          <button class="nav-item" data-view="log"><span class="nav-icon" aria-hidden="true">◴</span><span>Reading log</span></button>
+          <button class="nav-item" data-view="goals"><span class="nav-icon" aria-hidden="true">◎</span><span>Goals</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="mini-profile">
+            <div class="avatar avatar-small">AK</div>
+            <div><strong>Alex Kim</strong><span>Night-time reader</span></div>
+          </div>
+          <p class="sidebar-tip"><span class="tip-spark" aria-hidden="true">✦</span> “A room without books is like a body without a soul.” <small>— Cicero</small></p>
+        </div>
+      </aside>
+
+      <main class="main-content" id="main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
+            <span class="eyebrow" id="view-eyebrow"></span>
+          </div>
+          <form class="top-search-form" id="global-book-search-form" role="search">
+            <span aria-hidden="true">⌕</span>
+            <input id="global-book-search-query" type="search" autocomplete="off" placeholder="Search real books…" aria-label="Search real books on Open Library" />
+            <button type="submit">Search</button>
+          </form>
+          <div class="top-actions">
+            <button class="icon-button search-button" id="focus-search" aria-label="Search your library" title="Search your library">⌕</button>
+            <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">☾</button>
+            <div class="avatar">AK</div>
+          </div>
+        </header>
+
+        <section class="page-view active" id="view-dashboard" aria-labelledby="dashboard-title">
+          <div class="page-intro intro-with-actions">
+            <div>
+              <span class="section-kicker">YOUR READING COMPASS</span>
+              <h1 id="dashboard-title">Find your next <em>chapter.</em></h1>
+              <p>Let your TBR do the talking. We’ll find the story that fits right now.</p>
+            </div>
+          </div>
+
+          <section class="home-search-results" id="home-book-search-wrap" hidden aria-labelledby="home-search-title">
+            <div class="section-heading"><div><span class="section-kicker">REAL BOOKS, RIGHT NOW</span><h2 id="home-search-title">Matches for <em id="home-search-query">your search</em></h2></div><div class="heading-actions"><button class="text-button back-results" type="button" data-action="clear-search">← Back to Today</button><button class="text-button" data-view="tbr">Open My TBR <span>→</span></button></div></div>
+            <div class="book-search-status" id="home-book-search-status" role="status" aria-live="polite"></div>
+            <div class="open-library-grid" id="home-book-search-results"></div>
+          </section>
+
+          <div class="hero-grid">
+            <section class="pick-card" aria-labelledby="pick-title">
+              <div class="card-topline"><span class="eyebrow light">A LITTLE SERENDIPITY</span><span class="card-dot" aria-hidden="true"></span></div>
+              <div class="pick-layout">
+                <div class="feature-cover" id="pick-cover" data-cover-color="sage" aria-label="Selected book cover">
+                  <div class="cover-rings"></div><span class="cover-initials" id="pick-initials">ML</span><small>the midnight spine</small>
+                </div>
+                <div class="pick-copy">
+                  <span class="pick-label" id="pick-label">Your next read</span>
+                  <h2 id="pick-title">The Midnight Library</h2>
+                  <p class="pick-author" id="pick-author">Matt Haig</p>
+                  <div class="tag-row" id="pick-tags"><span class="tag tag-light">Speculative fiction</span><span class="tag tag-light">304 pages</span></div>
+                  <p class="pick-note" id="pick-note">A quiet, hopeful story for the part of you that is curious about the roads not taken.</p>
+                  <button class="button button-cream" id="choose-next"><span class="shuffle-mark" aria-hidden="true">↻</span> Choose my next read</button>
+                  <button class="text-button pick-details" id="pick-details" type="button" data-action="open-book" data-id="">View book details <span>→</span></button>
+                </div>
+              </div>
+            </section>
+
+            <section class="weekly-card" aria-labelledby="weekly-title">
+              <div class="card-topline"><span class="eyebrow">THIS WEEK</span><span class="spark-line" aria-hidden="true">↗</span></div>
+              <h2 id="weekly-title">Keep the<br /><em>pages turning.</em></h2>
+              <div class="week-chart" aria-label="Reading activity this week">
+                <div class="chart-bars"><i style="height: 27%"></i><i style="height: 55%"></i><i style="height: 43%"></i><i style="height: 78%"></i><i class="today" style="height: 64%"></i><i style="height: 36%"></i><i style="height: 18%"></i></div>
+                <div class="chart-days"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+              </div>
+              <div class="weekly-footer"><strong id="week-pages">126</strong><span>pages this week</span><span class="trend-pill">+18%</span></div>
+            </section>
+          </div>
+
+          <div class="stats-row" aria-label="Reading summary">
+            <div class="stat"><span class="stat-icon book-icon" aria-hidden="true">▥</span><div><strong id="stat-read">0</strong><span>books read</span></div><b class="stat-change">this year</b></div>
+            <div class="stat"><span class="stat-icon page-icon" aria-hidden="true">◫</span><div><strong id="stat-pages">0</strong><span>pages turned</span></div><b class="stat-change up">+12%</b></div>
+            <div class="stat"><span class="stat-icon flame-icon" aria-hidden="true">✦</span><div><strong id="stat-streak">12</strong><span>day reading streak</span></div><b class="stat-change warm">keep it up</b></div>
+          </div>
+
+          <div class="section-heading">
+            <div><span class="section-kicker">IN PROGRESS</span><h2>Keep the story moving</h2></div>
+            <button class="text-button" data-view="tbr">View all <span>→</span></button>
+          </div>
+          <div class="reading-grid" id="currently-reading"></div>
+
+          <div class="lower-grid">
+            <section class="panel challenge-panel" aria-labelledby="challenge-heading">
+              <div class="panel-heading"><div><span class="section-kicker" id="challenge-kicker">YOUR READING GOAL</span><h2 id="challenge-heading">Set a reading goal</h2></div><button class="more-button" data-view="goals" aria-label="View goals">···</button></div>
+              <div class="challenge-body"><div class="goal-ring" id="goal-ring"><span><strong id="goal-percent">0%</strong><small>complete</small></span></div><div class="goal-copy"><p id="goal-count-line"></p><p class="muted" id="goal-remaining-line"></p><button type="button" class="milestone milestone-button" data-view="goals"><span>✦</span><small id="goal-milestone-text"></small></button></div></div>
+            </section>
+            <section class="panel shelf-panel" aria-labelledby="shelf-heading">
+              <div class="panel-heading"><div><span class="section-kicker">SHELF SNAPSHOT</span><h2 id="shelf-heading">Waiting patiently</h2></div><button class="text-button" data-view="tbr">See shelf <span>→</span></button></div>
+              <div class="shelf-strip" id="shelf-strip"></div>
+              <div class="shelf-footer"><span><strong id="shelf-number">0</strong> books on your TBR</span><button class="add-inline" data-action="focus-search">⌕ Find books</button></div>
+            </section>
+          </div>
+          <section class="panel favorites-panel" aria-labelledby="favorites-heading">
+            <div class="panel-heading"><div><span class="section-kicker">YOUR FAVOURITES</span><h2 id="favorites-heading">Five-star stories</h2></div><span class="favorites-mark" aria-hidden="true">★</span></div>
+            <div class="favorite-books" id="favorite-books"></div>
+          </section>
+        </section>
+
+        <section class="page-view" id="view-tbr" aria-labelledby="tbr-title">
+          <div class="page-intro intro-with-actions"><div><span class="section-kicker">THE STACK</span><h1 id="tbr-title">Your <em>to-be-read</em> shelf.</h1><p>Every good story starts with a little anticipation.</p></div></div>
+          <section class="discover-panel" aria-labelledby="discover-title">
+            <div class="discover-copy"><span class="section-kicker">FROM OPEN LIBRARY</span><h2 id="discover-title">Find a story that’s <em>already out there.</em></h2><p>Search millions of real book records, then send a favorite straight to your TBR.</p></div>
+            <form class="discover-form" id="book-search-form"><label class="discover-search"><span>⌕</span><input id="book-search-query" type="search" autocomplete="off" placeholder="Try “The Night Circus”" aria-label="Search Open Library by title" /><button class="button button-dark" type="submit">Search books <span>→</span></button></label><small>Powered by Open Library Search · cover images load from their Cover API</small></form>
+          </section>
+          <div class="book-search-status" id="book-search-status" role="status" aria-live="polite"></div>
+          <div class="open-library-grid" id="book-search-results"></div>
+          <div class="toolbar"><label class="search-field"><span>⌕</span><input id="book-search" type="search" placeholder="Search your shelf" /></label><div class="filter-pills"><button class="filter-pill active" data-filter="all">All <span id="all-count">0</span></button><button class="filter-pill" data-filter="tbr">TBR <span id="tbr-filter-count">0</span></button><button class="filter-pill" data-filter="reading">Reading <span id="reading-filter-count">0</span></button><button class="filter-pill" data-filter="completed">Read <span id="completed-filter-count">0</span></button></div></div>
+          <div class="book-grid" id="tbr-grid"></div>
+        </section>
+
+        <section class="page-view" id="view-log" aria-labelledby="log-title">
+          <div class="page-intro intro-with-actions"><div><span class="section-kicker">THE ARCHIVE</span><h1 id="log-title">Your reading <em>log.</em></h1><p>A quiet record of the stories that stayed with you.</p></div></div>
+          <div class="log-summary"><div><span class="section-kicker">THIS YEAR</span><strong id="log-books">0</strong><span>books finished</span></div><div><span class="section-kicker">FAVORITE GENRE</span><strong id="favorite-genre">—</strong><span id="favorite-genre-count">Keep exploring</span></div><div><span class="section-kicker">PAGES READ</span><strong id="log-pages">0</strong><span>pages crossed</span></div></div>
+          <div class="section-heading log-heading"><div><span class="section-kicker">FINISHED STORIES</span><h2>What you’ve read</h2></div></div>
+          <div class="toolbar log-toolbar"><span class="section-kicker">READING LOG VIEW</span><div class="filter-pills"><button class="filter-pill active" data-log-filter="all">All read <span id="log-all-count">0</span></button><button class="filter-pill" data-log-filter="reviewed">Reviewed <span id="reviewed-count">0</span></button><button class="filter-pill" data-log-filter="unreviewed">Needs review <span id="unreviewed-count">0</span></button></div></div>
+          <div class="log-list" id="log-list"></div>
+        </section>
+
+        <section class="page-view" id="view-goals" aria-labelledby="goals-title">
+          <div class="page-intro"><span class="section-kicker">AIM A LITTLE HIGHER</span><h1 id="goals-title">Reading <em>goals.</em></h1><p>Make room for the books you want to become.</p></div>
+
+          <section class="goal-setter" aria-labelledby="goal-setter-title">
+            <div class="goal-setter-copy">
+              <span class="section-kicker">SET YOUR TARGET</span>
+              <h2 id="goal-setter-title">I want to read <em id="gs-number-label">24</em> <span id="gs-unit-label">books</span> by <em id="gs-date-label">Dec 31</em>.</h2>
+              <p class="gs-pace" id="gs-pace" role="status" aria-live="polite"></p>
+            </div>
+            <form class="goal-setter-form" id="goal-setter-form" novalidate>
+              <div class="gs-field">
+                <label for="gs-target">How many books?</label>
+                <div class="stepper">
+                  <button type="button" data-action="goal-step" data-step="-1" aria-label="One fewer book">−</button>
+                  <input id="gs-target" type="number" min="1" max="999" step="1" inputmode="numeric" value="24" />
+                  <button type="button" data-action="goal-step" data-step="1" aria-label="One more book">+</button>
+                </div>
+                <div class="preset-row" aria-label="Quick picks">
+                  <button type="button" class="preset" data-action="goal-preset" data-value="12">12</button>
+                  <button type="button" class="preset" data-action="goal-preset" data-value="24">24</button>
+                  <button type="button" class="preset" data-action="goal-preset" data-value="36">36</button>
+                  <button type="button" class="preset" data-action="goal-preset" data-value="52">52</button>
+                </div>
+              </div>
+              <div class="gs-field">
+                <label for="gs-deadline">Finish by</label>
+                <input id="gs-deadline" type="date" />
+                <div class="preset-row">
+                  <button type="button" class="preset" data-action="goal-deadline" data-value="this-year">End of this year</button>
+                  <button type="button" class="preset" data-action="goal-deadline" data-value="next-year">End of next year</button>
+                </div>
+              </div>
+              <p class="field-error" id="gs-error" role="alert"></p>
+              <button class="button button-dark" id="gs-submit" type="submit">Save my goal <span>→</span></button>
+            </form>
+          </section>
+
+          <div class="section-heading goals-heading"><div><span class="section-kicker">YOUR PROGRESS</span><h2>Your goals</h2></div></div>
+          <div class="goals-grid" id="goals-grid"></div>
+        </section>
+
+        <section class="page-view" id="view-book" aria-label="Book details">
+          <div id="book-detail"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="modal" id="book-dialog" aria-labelledby="book-dialog-title">
+      <form method="dialog" id="book-form">
+        <div class="modal-heading"><div><span class="section-kicker">EDIT DETAILS</span><h2 id="book-dialog-title">Tweak the details.</h2></div><button class="modal-close" type="button" data-close-dialog aria-label="Close">×</button></div>
+        <input type="hidden" id="book-id" />
+        <div class="form-grid"><label>Title<input id="book-title" required placeholder="e.g. Sea of Tranquility" /></label><label>Author<input id="book-author" required placeholder="e.g. Emily St. John Mandel" /></label><label>Genre<input id="book-genre" placeholder="e.g. Literary fiction" /></label><label>Pages<input id="book-pages" type="number" min="1" placeholder="e.g. 304" /></label><label class="full-field">Cover image URL <span class="optional">optional</span><input id="book-cover" type="url" placeholder="https://…" /></label></div>
+        <div class="modal-actions"><button class="button button-ghost" type="button" data-close-dialog>Cancel</button><button class="button button-dark" id="save-book" value="default">Save changes <span>→</span></button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal compact-modal" id="progress-dialog" aria-labelledby="progress-dialog-title">
+      <form method="dialog" id="progress-form"><div class="modal-heading"><div><span class="section-kicker">A FEW MORE PAGES</span><h2 id="progress-dialog-title">Update progress.</h2></div><button class="modal-close" type="button" data-close-dialog aria-label="Close">×</button></div><input type="hidden" id="progress-id" /><label>How far are you?<div class="range-line"><input id="progress-range" type="range" min="0" max="100" value="42" /><output id="progress-output">42%</output></div></label><label>Or enter a percentage<input id="progress-number" type="number" min="0" max="100" value="42" /></label><div class="modal-actions"><button class="button button-ghost" type="button" data-close-dialog>Cancel</button><button class="button button-dark" value="default">Save progress <span>→</span></button></div></form>
+    </dialog>
+
+    <dialog class="modal compact-modal" id="completion-dialog" aria-labelledby="completion-dialog-title">
+      <form method="dialog" id="completion-form"><div class="modal-heading"><div><span class="section-kicker">ONE LAST NOTE</span><h2 id="completion-dialog-title">You finished a story.</h2></div><button class="modal-close" type="button" data-close-dialog aria-label="Close">×</button></div><input type="hidden" id="completion-id" /><label>How would you rate it? <span class="optional">optional</span><div class="rating-picker" id="rating-picker"><button type="button" data-rating="1">★</button><button type="button" data-rating="2">★</button><button type="button" data-rating="3">★</button><button type="button" data-rating="4">★</button><button type="button" data-rating="5">★</button></div></label><label>A note for future you <span class="optional">optional</span><textarea id="completion-note" rows="3" placeholder="What stayed with you?"></textarea></label><div class="modal-actions"><button class="button button-ghost" type="button" data-close-dialog>Later</button><button class="button button-dark" value="default">Save to reading log <span>→</span></button></div></form>
+    </dialog>
+
+    <dialog class="modal compact-modal" id="confirm-dialog" aria-labelledby="confirm-title">
+      <form method="dialog"><div class="modal-heading"><div><span class="section-kicker">PLEASE CONFIRM</span><h2 id="confirm-title">Remove this?</h2></div><button class="modal-close" type="button" data-close-dialog aria-label="Close">×</button></div><p class="confirm-text" id="confirm-text"></p><div class="modal-actions"><button class="button button-ghost" type="button" data-close-dialog>Keep it</button><button class="button button-danger" id="confirm-ok" value="confirm">Remove</button></div></form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-check">✓</span><span id="toast-message">Saved</span></div>
+      <script>
+      // Safety net: if app.js never loads, don't leave the reader staring at the loader.
+      setTimeout(function () {
+        var l = document.getElementById("app-loader");
+        if (l && document.body.classList.contains("is-loading")) {
+          document.body.classList.remove("is-loading");
+          l.remove();
+        }
+      }, 10000);
+    </script>
+    <script>
+(function(){
+  // ---------- account overlay ----------
+  var STATE_KEY='next-chapter-state-v1';
+  var FLAG='next-chapter-auth-transition';
+  var sb=null, uid=null, userName='Reader', pending=null, pushTimer=null, shown=false, timer=null, mode='login';
+  var $=function(id){ return document.getElementById(id); };
+  var ov=$('ms-overlay'), shell=document.querySelector('.app-shell'), skipLink=document.querySelector('.skip-link');
+  var welcome=$('ms-welcome'), greet=document.querySelector('.ms-greet'), auth=$('ms-auth'), skip=$('ms-skip'), guest=$('ms-guest');
+
+  function initSb(){
+    if(sb) return sb;
+    var config=window.__SUPABASE_CONFIG__;
+    if(config&&/PASTE/i.test(config.anonKey||'')) config=null;
+    if(!config||!config.url||!config.anonKey||!window.supabase||typeof window.supabase.createClient!=='function') return null;
+    sb=window.supabase.createClient(config.url,config.anonKey);
+    return sb;
+  }
+
+  function sbProblem(){
+    var c=window.__SUPABASE_CONFIG__;
+    if(!window.supabase||typeof window.supabase.createClient!=='function')
+      return 'The login library didn’t load. Check your internet connection (and any ad blocker), then reload.';
+    if(!c||!c.url||!c.anonKey||/PASTE/i.test(c.anonKey))
+      return location.protocol==='file:'
+        ? 'Login can’t work when the file is opened directly. Run it from a local server, or add your Supabase keys in supabase-config.js. You can still use “Continue without an account”.'
+        : 'The account service isn’t set up: /api/config.js wasn’t found. Add your Supabase keys in supabase-config.js, or use “Continue without an account”.';
+    return 'Couldn’t reach the account service. Check your internet connection and reload.';
+  }
+
+  initSb();
+
+  // ---------- small helpers ----------
+  function lock(on){ document.body.classList.toggle('ms-locked',on); if(shell) shell.inert=on; if(skipLink) skipLink.inert=on; }
+  function initials(n){ return n.trim().split(/\s+/).slice(0,2).map(function(w){return w.charAt(0)}).join('').toUpperCase()||'?'; }
+  function nameFromEmail(e){ var s=(e||'').split('@')[0].replace(/[._-]+/g,' ').trim(); return s.replace(/\b\w/g,function(c){return c.toUpperCase()})||'Reader'; }
+  function nameOf(user){ return (user.user_metadata&&user.user_metadata.name)||nameFromEmail(user.email); }
+  function validEmail(e){ return /^\S+@\S+\.\S+$/.test(e); }
+  function applyUser(name){
+    var strong=document.querySelector('.mini-profile strong'); if(strong) strong.textContent=name;
+    document.querySelectorAll('.avatar').forEach(function(a){ a.textContent=initials(name); });
+  }
+  function setFlag(v){ try{ sessionStorage.setItem(FLAG,v); }catch(e){} }
+  function takeFlag(){ var v=null; try{ v=sessionStorage.getItem(FLAG); sessionStorage.removeItem(FLAG); }catch(e){} return v; }
+  function busy(form,on){
+    var b=form.querySelector('.ms-primary'); if(!b) return;
+    if(on){ b.dataset.label=b.textContent; b.textContent='Please wait…'; } else if(b.dataset.label){ b.textContent=b.dataset.label; }
+    b.disabled=on;
+  }
+  function toast(m){ try{ window.showToast(m); }catch(e){} }
+
+  function apiRequest(path, options){
+    initSb();
+    return sb.auth.getSession().then(function(sessionResult){
+      var session=sessionResult.data&&sessionResult.data.session;
+      if(!session) throw new Error('Your session has expired. Please sign in again.');
+      var headers=Object.assign({'Authorization':'Bearer '+session.access_token,'Content-Type':'application/json'},(options&&options.headers)||{});
+      return fetch(path,Object.assign({},options||{},{headers:headers})).then(function(response){
+        return response.json().catch(function(){ return {}; }).then(function(body){
+          if(!response.ok) throw new Error(body.error||'Could not save your reading data.');
+          return body;
+        });
+      });
+    });
+  }
+
+  // ---------- cloud sync: every time app.js saves its state, copy it to this user's row ----------
+  var origSet=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(k,v){
+    origSet.apply(this,arguments);
+    if(this===window.localStorage && k===STATE_KEY && uid) queuePush(v);
+  };
+  function queuePush(v){ pending=v; clearTimeout(pushTimer); pushTimer=setTimeout(flush,800); }
+  function flush(){
+    clearTimeout(pushTimer);
+    initSb();
+    if(pending===null||!uid||!sb) return Promise.resolve();
+    var v=pending; pending=null;
+    return apiRequest('/api/state',{method:'PUT',body:JSON.stringify({state:JSON.parse(v)})})
+      .catch(function(error){ console.warn('Could not save reading data',error); toast('Couldn’t sync your data. Check your connection.'); });
+  }
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden') flush(); });
+  window.addEventListener('pagehide',flush);
+
+  // ---------- screens ----------
+  function enter(name){
+    userName=name; applyUser(name);
+    ov.classList.add('ms-off'); lock(false); document.body.classList.remove('sidebar-open'); window.scrollTo(0,0);
+  }
+  function showAuth(){
+    if(shown) return; shown=true; clearTimeout(timer);
+    skip.classList.add('ms-hide'); welcome.classList.add('ms-gone'); auth.classList.add('ms-show');
+    setTimeout(function(){ var f=$(mode==='signup'?'ms-su-name':'ms-li-email'); if(f) f.focus({preventScroll:true}); },1000);
+  }
+  function showLoginNow(){
+    lock(true); ov.classList.remove('ms-off','ms-instant'); welcome.classList.add('ms-gone'); skip.classList.add('ms-hide');
+    auth.classList.add('ms-show'); shown=true; setMode('login'); document.body.classList.remove('sidebar-open');
+  }
+
+  function setMode(m){
+    mode=m; var s=(m==='signup');
+    $('ms-tab-signup').setAttribute('aria-selected',s); $('ms-tab-login').setAttribute('aria-selected',!s);
+    $('ms-signup').hidden=!s; $('ms-login').hidden=s;
+    $('ms-title').innerHTML=s?'Join us':'Welcome back';
+    $('ms-sub').textContent=s?'Create your account to get started.':'Log in to continue.';
+    $('ms-foot').innerHTML=s?'Already have an account? <a href="#login" data-go="login">Log in</a>':'New here? <a href="#signup" data-go="signup">Create an account</a>';
+    $('ms-su-msg').textContent=''; $('ms-li-msg').textContent='';
+  }
+  $('ms-tab-signup').addEventListener('click',function(){setMode('signup')});
+  $('ms-tab-login').addEventListener('click',function(){setMode('login')});
+  $('ms-foot').addEventListener('click',function(ev){ var a=ev.target.closest('a[data-go]'); if(!a) return; ev.preventDefault(); setMode(a.getAttribute('data-go')); });
+  guest.addEventListener('click',function(){ enter('Reader'); });
+  setMode('login');
+
+  // ---------- after a successful sign up / log in: load this person's saved data ----------
+  function afterAuth(user,msgEl){
+    uid=user.id; var name=nameOf(user); userName=name;
+    return apiRequest('/api/state').then(function(response){
+      var remote=response.state&&typeof response.state==='object'?response.state:{books:[],goals:[]};
+      // The server returns an empty state for a new account; never copy demo or guest data into it.
+      origSet.call(window.localStorage,STATE_KEY,JSON.stringify(remote));
+      setFlag('fresh'); location.reload();
+    }).catch(function(err){
+      console.warn(err);
+      msgEl.textContent='Signed in, but your data couldn’t be loaded: '+(err.message||'unknown error')+'. Check the Supabase table setup.';
+    });
+  }
+
+  $('ms-signup').addEventListener('submit',function(ev){
+    ev.preventDefault();
+    var f=ev.target, msg=$('ms-su-msg'), name=$('ms-su-name').value.trim(),
+        email=$('ms-su-email').value.trim().toLowerCase(), pw=$('ms-su-pw').value;
+    initSb();
+    if(!sb){ msg.textContent=sbProblem(); return; }
+    if(!name){ msg.textContent='Enter your name.'; return; }
+    if(!validEmail(email)){ msg.textContent='Enter a valid email address.'; return; }
+    if(pw.length<6){ msg.textContent='Your password needs at least 6 characters.'; return; }
+    if(pw!==$('ms-su-pw2').value){ msg.textContent='The passwords don’t match.'; return; }
+    msg.textContent=''; busy(f,true);
+    var exists='An account with this email already exists. <a href="#login" id="ms-goto-login">Log in instead</a>';
+    sb.auth.signUp({email:email,password:pw,options:{data:{name:name}}}).then(function(res){
+      if(res.error){
+        if(/already/i.test(res.error.message)) msg.innerHTML=exists; else msg.textContent=res.error.message;
+        busy(f,false); return;
+      }
+      var u=res.data.user;
+      if(u&&u.identities&&u.identities.length===0){ msg.innerHTML=exists; busy(f,false); return; }
+      if(!res.data.session){ msg.textContent='Account created. Check your email to confirm it, then log in.'; busy(f,false); return; }
+      return afterAuth(u,msg).then(function(){ busy(f,false); setTimeout(function(){ f.reset(); },2000); });
+    }).catch(function(e){ msg.textContent='Something went wrong: '+e.message; busy(f,false); });
+  });
+
+  $('ms-login').addEventListener('submit',function(ev){
+    ev.preventDefault();
+    var f=ev.target, msg=$('ms-li-msg'), email=$('ms-li-email').value.trim().toLowerCase(), pw=$('ms-li-pw').value;
+    initSb();
+    if(!sb){ msg.textContent=sbProblem(); return; }
+    if(!validEmail(email)){ msg.textContent='Enter a valid email address.'; return; }
+    if(!pw){ msg.textContent='Enter your password.'; return; }
+    msg.textContent=''; busy(f,true);
+    sb.auth.signInWithPassword({email:email,password:pw}).then(function(res){
+      if(res.error){
+        if(/confirm/i.test(res.error.message)) msg.textContent='Please confirm your email first. Check your inbox.';
+        else msg.innerHTML='Incorrect email or password. <a href="#signup" id="ms-goto-signup">New here? Create an account</a>';
+        busy(f,false); return;
+      }
+      return afterAuth(res.data.user,msg).then(function(){ busy(f,false); setTimeout(function(){ f.reset(); },2000); });
+    }).catch(function(e){ msg.textContent='Something went wrong: '+e.message; busy(f,false); });
+  });
+
+  $('ms-li-msg').addEventListener('click',function(ev){
+    if(ev.target.id!=='ms-goto-signup') return; ev.preventDefault();
+    var e=$('ms-li-email').value; setMode('signup'); $('ms-su-email').value=e; $('ms-su-name').focus();
+  });
+  $('ms-su-msg').addEventListener('click',function(ev){
+    if(ev.target.id!=='ms-goto-login') return; ev.preventDefault();
+    var e=$('ms-su-email').value; setMode('login'); $('ms-li-email').value=e; $('ms-li-pw').focus();
+  });
+
+  // ---------- log out ----------
+  var bottom=document.querySelector('.sidebar-bottom');
+  if(bottom){
+    var b=document.createElement('button'); b.type='button'; b.className='ms-logout'; b.textContent='↩ Log out';
+    b.addEventListener('click',function(){
+      b.disabled=true;
+      flush().then(function(){ return sb?sb.auth.signOut():null; }).catch(function(e){ console.warn(e); }).then(function(){
+        uid=null;
+        try{ window.localStorage.removeItem(STATE_KEY); }catch(e){}   // this device keeps nothing of the account
+        setFlag('login'); location.reload();
+      });
+    });
+    bottom.insertBefore(b,bottom.firstChild);
+  }
+
+  // ---------- start-up ----------
+  // Supabase keeps the session in localStorage; read it synchronously so there is no flash of the greeting.
+  function cachedUser(){
+    try{
+      var keys=Object.keys(window.localStorage);
+      for(var i=0;i<keys.length;i++){
+        if(!/^sb-[^-]+-auth-token$/.test(keys[i])) continue;
+        var t=JSON.parse(window.localStorage.getItem(keys[i]));
+        if(t&&t.user) return t.user;
+      }
+      return null;
+    }catch(e){ return null; }
+  }
+  var flag=takeFlag(), cached=cachedUser();
+  if(cached){ uid=cached.id; userName=nameOf(cached); applyUser(userName); }
+
+  if(flag==='fresh'&&cached){
+    // Just logged in and the page reloaded with their data: keep the cover up, then fade it away.
+    shown=true; welcome.classList.add('ms-gone'); lock(true);
+    setTimeout(function(){ enter(userName); },500);
+  } else if(flag==='login'||(!cached&&flag===null&&false)){
+    showLoginNow();
+  } else if(cached){
+    ov.classList.add('ms-off','ms-instant'); lock(false); shown=true;
+  } else {
+    lock(true);
+    greet.addEventListener('animationend',function(){ timer=setTimeout(showAuth,1900); });
+    setTimeout(showAuth,3600);
+    skip.addEventListener('click',showAuth);
+  }
+
+  // Double-check the saved session is still valid; if not, send them to the login card.
+  var sessionChecked=false;
+  function checkSession(){
+    if(sessionChecked||!cached||!initSb()) return;
+    sessionChecked=true;
+    sb.auth.getSession().then(function(r){
+      if(!r.data.session&&flag!=='login'){ uid=null; showLoginNow(); }
+    });
+  }
+  window.__sbReady=function(){ initSb(); checkSession(); };
+  checkSession();
+})();
+</script>
+  <script>
+(function(){
+  var box=document.getElementById("ms-stars"); if(!box) return;
+  var n=matchMedia("(max-width:700px)").matches?60:110, h="";
+  for(var i=0;i<n;i++){
+    var z=(Math.random()*3+2).toFixed(1), c=Math.random();
+    h+='<i class="'+(c<.2?"b":c<.3?"g":"")+'" style="left:'+(Math.random()*100).toFixed(2)+'%;top:'+(Math.random()*100).toFixed(2)+'%;width:'+z+'px;height:'+z+'px;animation-duration:'+(2.4+Math.random()*3.6).toFixed(1)+'s;animation-delay:-'+(Math.random()*6).toFixed(1)+'s"></i>';
+  }
+  box.innerHTML=h;
+  var ov=document.getElementById("ms-overlay");
+  if(ov){ var o=document.createElement("div"); o.className="ms-overlay-stars"; o.setAttribute("aria-hidden","true"); o.innerHTML=h; ov.insertBefore(o,ov.firstChild); }
+})();
+</script>
+  <script>
+(function(){
+  var b=document.getElementById("theme-toggle"); if(!b) return;
+  var r=document.documentElement, m=document.querySelector('meta[name="theme-color"]');
+  function sync(){ var d=r.dataset.theme==="dark"; b.setAttribute("aria-pressed",d); b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode"); b.textContent=d?"\u2600":"\u263E"; if(m) m.content=d?"#0A1230":"#25141F"; }
+  b.addEventListener("click",function(){ var n=r.dataset.theme==="dark"?"light":"dark"; r.dataset.theme=n; try{ localStorage.setItem("ms-theme",n); }catch(e){} sync(); });
+  sync();
+})();
+</script>
+  </body>
+</html>

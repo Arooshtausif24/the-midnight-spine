@@ -1,0 +1,5 @@
+# Hide environment variables / secret keys
+.env
+
+# Hide downloaded packages (keeps your repository small and clean)
+node_modules/

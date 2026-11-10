@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID } = require('node:crypto');
 const app = express();
@@ -304,7 +305,7 @@ app.delete('/api/goals/:id', requireUser, asyncRoute(async (req, res) => {
   res.json({ goals: saved.goals });
 }));
 
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) return next(new HttpError(404, 'API endpoint not found.'));
   next();
@@ -317,6 +318,10 @@ app.use((error, req, res, next) => {
   res.status(status).json({ error: status >= 500 && status === 500 ? 'An unexpected server error occurred.' : error.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`The Midnight Spine is running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`The Midnight Spine is running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

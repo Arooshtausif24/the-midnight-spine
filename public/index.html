@@ -210,6 +210,10 @@ html[data-theme="light"] .topbar{background:rgba(255,246,248,.55);-webkit-backdr
 html[data-theme="light"] .stat{background:rgba(255,255,255,.6)}
 </style>
     <script defer src="app.js"></script>
+    <script type="module">
+      import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@2/+esm';
+      inject();
+    </script>
     <noscript><style>.app-loader{display:none!important}body.is-loading .app-shell{opacity:1!important;transform:none!important}</style></noscript>
   </head>
   <body class="is-loading" aria-busy="true">

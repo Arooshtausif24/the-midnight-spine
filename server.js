@@ -323,5 +323,4 @@ if (require.main === module) {
     console.log(`The Midnight Spine is running at http://localhost:${PORT}`);
   });
 }
-
 module.exports = app;
